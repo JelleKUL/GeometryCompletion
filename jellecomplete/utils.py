@@ -1,5 +1,6 @@
 import open3d as o3d
 import matplotlib
+from scipy.spatial import Delaunay
 import numpy as np
 import jellecomplete.params as params
 
@@ -33,3 +34,53 @@ def show_geometries(geometries, color = False):
     opt.background_color = np.asarray([1,1,1])
     opt.light_on = True
     viewer.run()
+
+def get_points_in_hull(points, hull):
+    """
+    Test if points in `points` are in `hull`
+
+    `points` should be a `NxK` coordinates of `N` points in `K` dimensions
+    `hull` is either a scipy.spatial.Delaunay object or the `MxK` array of the 
+    coordinates of `M` points in `K`dimensions for which Delaunay triangulation
+    will be computed
+    Returns a bool array with in or not
+    """
+
+    if not isinstance(hull,Delaunay):
+        hull = Delaunay(hull)
+
+    return hull.find_simplex(points)>=0
+
+def get_indices_in_hull(points, hull):
+    """
+    Test if points in `points` are in `hull`
+
+    `points` should be a `NxK` coordinates of `N` points in `K` dimensions
+    `hull` is either a scipy.spatial.Delaunay object or the `MxK` array of the 
+    coordinates of `M` points in `K`dimensions for which Delaunay triangulation
+    will be computed
+    Returns the indices of the points that are in the hull, usefull for open3d pointclouds
+    """
+
+    if not isinstance(hull,Delaunay):
+        hull = Delaunay(hull)
+    ind = hull.find_simplex(points)>=0
+
+    intList = []
+    for i,x in enumerate(ind):
+        if ind[i]:
+            intList.append(i)
+
+    return intList
+
+def filter_pcd_by_distance(sourcePcd, testPcd, maxDistance : float):
+    """ Returns a filtered point cloud based on the distance to another, 
+            1) all the points close enough, 
+            2) all the far away points
+    """
+
+    dists = sourcePcd.compute_point_cloud_distance(testPcd)
+    dists = np.asarray(dists)
+    ind = np.where(dists < maxDistance)[0]
+
+    return sourcePcd.select_by_index(ind), sourcePcd.select_by_index(ind, True)
